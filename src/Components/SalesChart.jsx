@@ -1,8 +1,6 @@
 // src/components/SalesChart.js
-import React from 'react';
-import { useRef, useEffect } from 'react';
-import { Line } from 'react-chartjs-2';
-import Chart from 'chart.js/auto';
+import React, { useRef, useEffect, useState } from "react";
+import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,7 +10,7 @@ import {
   Title,
   Tooltip,
   Legend,
-} from 'chart.js';
+} from "chart.js";
 
 // Register Chart.js modules
 ChartJS.register(
@@ -27,75 +25,84 @@ ChartJS.register(
 
 const SalesChart = () => {
   const chartRef = useRef(null);
-  const data = {
-    labels: ['5k', '10k', '15k', '20k', '25k', '30k', '35k', '40k', '45k', '50k', '55k', '60k', '65k', '70k', '75k', '80k', '85k', '90k', '95k', '100k'],
-    datasets: [
-      {
-        label: 'Sales Data',
-        data: [20, 30, 50, 54, 33, 40, 37, 57, 30, 83, 37, 56, 52, 57, 80, 90, 57, 61, 21, 80], // Example data
-        borderColor: '#007bff',
-        backgroundColor: function () {
-          const chart = chartRef.current;
-          if (!chart) return '#4379EE10';
+  const [chartData, setChartData] = useState(null); // initially null
+  const [loading, setLoading] = useState(true);
 
-          const ctx = chart.ctx;
-          const gradient = ctx.createLinearGradient(0, 0, 60, chart.height);
-          gradient.addColorStop(0, '#4379EE29'); // Top color
-          gradient.addColorStop(1, '#ffffff'); // Bottom color
-
-          return gradient;
-        },
-        pointBackgroundColor: '#007bff',
-        tension: 0.1,
-        fill: true,
-        borderWidth: 1,
-      },
-    ],
-  };
+  useEffect(() => {
+    fetch("http://localhost:5000/api/sales")
+      .then((res) => res.json())
+      .then((data) => {
+        setChartData({
+          labels: data.labels,
+          datasets: [
+            {
+              label: "Sales Data",
+              data: data.values,
+              borderColor: "#007bff",
+              backgroundColor: (context) => {
+                const { ctx, chartArea } = context.chart;
+                if (!chartArea) return "#4379EE29"; // fallback
+                const gradient = ctx.createLinearGradient(
+                  0,
+                  chartArea.top,
+                  0,
+                  chartArea.bottom
+                );
+                gradient.addColorStop(0, "#4379EE29");
+                gradient.addColorStop(1, "#ffffff");
+                return gradient;
+              },
+              pointBackgroundColor: "#007bff",
+              tension: 0.1,
+              fill: true,
+              borderWidth: 1,
+            },
+          ],
+        });
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching sales data:", err);
+        setLoading(false);
+      });
+  }, []);
 
   const options = {
     responsive: true,
     plugins: {
       legend: {
         display: true,
-        position: 'top',
+        position: "top",
       },
       title: {
         display: false,
-        text: 'Sales Chart',
       },
     },
     scales: {
       x: {
-        grid: {
-          display: false, 
-        },
+        grid: { display: false },
       },
       y: {
         grid: {
           display: true,
-          color: '#EAEAEA', 
-          borderColor: '#EAEAEA',
-          tickColor: '#EAEAEA',
+          color: "#EAEAEA",
+          borderColor: "#EAEAEA",
+          tickColor: "#EAEAEA",
         },
         ticks: {
           callback: (value) => `${value}%`,
           stepSize: 20,
-          min: 0, 
+          min: 0,
           max: 100,
         },
-        //beginAtZero: true,
       },
     },
-};
-useEffect(() => {
-  if (chartRef.current) {
-    const chart = chartRef.current;
-    chart.update();
-  }
-}, []);
+  };
 
-  return <Line ref={chartRef} data={data} options={options} />;
+  if (loading) return <p>Loading chart...</p>;
+  if (!chartData) return <p>No data available</p>;
+
+  return <Line ref={chartRef} data={chartData} options={options} />;
 };
 
 export default SalesChart;
